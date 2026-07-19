@@ -3,6 +3,7 @@ import { UploadView } from './views/UploadView';
 import { DashboardView } from './views/DashboardView';
 import { encryptPayload, decryptPayload } from './core/crypto';
 import { saveTransactionHistory, loadTransactionHistory } from './core/storage';
+import { parseStatementPDF } from './core/parser';
 
 export default function App() {
   const [sessionData, setSessionData] = useState(null);
@@ -21,25 +22,27 @@ export default function App() {
   }, []);
 
   const handleParsingPipeline = async ({ file, password }) => {
-    try {
-      // Mock Data payload imitating parsing engine output for the 7 standard columns
-      const mockParsedRows = [
-        { date: '01/07/2026', narration: 'INTERNET BANKING TRANSFER / SALARY', refNo: 'TXN991204', valueDate: '01/07/2026', withdrawalAmount: '', depositAmount: '1,20,000.00', closingBalance: '1,45,000.00' },
-        { date: '03/07/2026', narration: 'LOCAL POWER AND UTILITIES CORP', refNo: 'CHQ00412', valueDate: '04/07/2026', withdrawalAmount: '4,500.00', depositAmount: '', closingBalance: '1,40,500.00' }
-      ];
+  try {
+    // Invokes background engine task execution without locking up standard render nodes
+    const finalStructuredRows = await parseStatementPDF(file);
 
-      const serializedCSV = JSON.stringify(mockParsedRows);
-
-      // Perform cryptographic serialization right before database staging
-      const { encryptedData, salt, iv } = await encryptPayload(serializedCSV, password);
-      await saveTransactionHistory(encryptedData, salt, iv);
-
-      // Save raw states exclusively to application volatile memory
-      setSessionData(mockParsedRows);
-    } catch (err) {
-      console.error("Cryptographic processing execution failure:", err);
+    if (finalStructuredRows.length === 0) {
+      console.warn("Parsing process completed, but zero valid transaction rows matched statement schema criteria.");
+      return;
     }
-  };
+
+    const serializedCSV = JSON.stringify(finalStructuredRows);
+
+    // Cryptographic serialization and backup layer execution
+    const { encryptedData, salt, iv } = await encryptPayload(serializedCSV, password);
+    await saveTransactionHistory(encryptedData, salt, iv);
+
+    // Statically commit readable structures to local active session memory context
+    setSessionData(finalStructuredRows);
+  } catch (err) {
+    console.error("Critical execution pipeline breakdown:", err);
+  }
+};
 
   const handleClearSession = () => {
     setSessionData(null); // Purges internal unencrypted structures cleanly from RAM
