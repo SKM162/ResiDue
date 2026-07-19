@@ -3,14 +3,14 @@
  * @param {File} file - The uploaded statement file object.
  * @returns {Promise<Array<Object>>} Resolved parsed structural rows.
  */
-export function parseStatementPDF(file) {
+export function parseStatementPDF(file, pdfPassword) {
   return new Promise((resolve, reject) => {
     // Instantiate background thread module configuration
     const worker = new Worker(new URL('../../public/workers/pdf.worker.js', import.meta.url), {
       type: 'module'
     });
 
-    worker.postMessage({ file });
+    worker.postMessage({ file, pdfPassword });
 
     worker.onmessage = (event) => {
       const { success, data, error } = event.data;
