@@ -5,11 +5,14 @@ importScripts('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js
 self.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 self.onmessage = async function (e) {
-  const { file } = e.data;
+  cconst { file, pdfPassword } = e.data;
 
   try {
     const arrayBuffer = await file.arrayBuffer();
-    const loadingTask = self.pdfjsLib.getDocument({ data: arrayBuffer });
+    const loadingTask = self.pdfjsLib.getDocument({
+      data: arrayBuffer,
+      password: pdfPassword
+    });
     const pdf = await loadingTask.promise;
     
     let allExtractedRows = [];
